@@ -15,10 +15,11 @@ import nltk
 from nltk import word_tokenize
 from nltk.corpus import stopwords
 import string
+from sklearn.preprocessing import LabelEncoder
 
 
 # reading the csv file and creating inital dataFrame
-dataFrame = pd.read_csv('data.csv', encoding='latin-1',)
+dataFrame = pd.read_csv('data - Copy.csv', encoding='latin-1',)
 
 
 def replaceSignature(row):
@@ -30,14 +31,15 @@ def replaceSignature(row):
     patternCid = '\[cid.*\]'
     patternLotus = '\[Notes.*\]'
     
+    row['description'] = row['short_description'] + ". " + row['description']      
     row['description'] = re.sub(patternBestRegards, "", row['description'], 0, re.DOTALL|re.I)
     row['description'] = re.sub(patternKindRegards, "", row['description'], 0, re.DOTALL|re.I)
     row['description']  = re.sub(patternDivider, "", row['description'] , 0, re.DOTALL)
-    row['description'] = row['short_description'] + ". " + row['description']
     row['description'] = re.sub(r'\d+', '', row['description'])
     row['description'] = re.sub(patternCid, '', row['description'])
     row['description'] = re.sub(patternLotus, '', row['description'])
-
+    row['description'] = row['description'].replace("'", "")
+    row['description'] = row['description'].replace('"', '')
 
     row['description'] = row['description'].strip()
     
@@ -47,21 +49,25 @@ def replaceSignature(row):
 dataFrame = dataFrame.apply(replaceSignature, axis=1)
 
 # getting the dataframe with only necessary columns
-cleanDataFrame = pd.DataFrame(dataFrame, columns=['category', 'subcategory', 'description', 'category_id'])
+cleanDataFrame = pd.DataFrame(dataFrame, 
+                              columns=['category', 
+                                       'subcategory', 
+                                       'short_description',
+                                       'description', 
+                                       'category_id'])
 
 nltk.download('stopwords')
 nltk.download('punkt')
 
-customStopWords = ["fw", "inc", "re", "``"]
+customStopWords = ["fw:", "inc", "re:", "``", '"']
 stopWords = stopwords.words('english') + list(string.punctuation) + customStopWords
 cleanItems = []
 for words in cleanDataFrame['description'].astype(str):
     cleanItems.append([word for word in 
                        word_tokenize(words.lower()) if word not in stopWords])
-tt = cleanDataFrame['description'].astype(str)[0]
-tta =  kpt.text_to_word_sequence(tt)
+
 # releasing memory
-del dataFrame
+dataFrame
 #train_x = cleanDataFrame['description']
 train_x = np.asarray(cleanItems)
 train_y = cleanDataFrame['category_id']
@@ -83,7 +89,10 @@ def convert_text_to_index_array(text):
     # of the longest text in the set.
     res = []
     for word in text:
-        res.append(dictionary[word])
+        try:
+            res.append(dictionary[word])
+        except KeyError:
+            pass
     return res
     #return [dictionary[word] for word in kpt.text_to_word_sequence(text)]
 
@@ -100,6 +109,13 @@ allWordIndices = np.asarray(allWordIndices)
 # create one-hot matrices out of the indexed tweets
 train_x = tokenizer.sequences_to_matrix(allWordIndices, mode='binary')
 # treat the labels as categories
+encoder = LabelEncoder()
+encoder.fit(train_y)
+
+encoded_Y = encoder.transform(train_y)
+print(encoded_Y)
+
+y_train = keras.utils.to_categorical(encoded_Y, 20)
 train_y = keras.utils.to_categorical(train_y, 20)
 
 
@@ -109,15 +125,15 @@ from keras.layers import Dense, Dropout, Activation
 model = Sequential()
 model.add(Dense(512, input_shape=(max_words,), activation='relu'))
 model.add(Dropout(0.5))
-model.add(Dense(256, activation='sigmoid'))
-model.add(Dropout(0.5))
-model.add(Dense(20, activation='softmax'))
+model.add(Dense(20, activation='sigmoid'))
+#model.add(Dropout(0.5))
+#model.add(Dense(20, activation='softmax'))
 
 model.compile(loss='categorical_crossentropy',
   optimizer='adam',
   metrics=['accuracy'])
 
-model.fit(train_x, train_y,
+model.fit(train_x, y_train,
   batch_size=32,
   epochs=5,
   verbose=1,
@@ -131,16 +147,14 @@ with open('model.json', 'w') as json_file:
 
 model.save_weights('model.h5')
 
-labels = ['HRIS - Other','HRIS - Payroll','HRIS - Travel & Expense','HRIS - Integrations','HRIS - Legacy - IJM','HRIS - Legacy - Recruitment-DB','HRIS - Change Management','HRIS - Knowledge Management','HRIS - Time Off','HRIS - Mobile App','HRIS - People Management','HRIS - Legacy - Employee Request- / DQM-','HRIS - Legacy - NAV','HRIS - Master Data Management','HRIS - Legacy - Absence-DB','HRIS - Reporting & Analytics','HRIS - Legacy - AC Staff','HRIS - Access Management','HRIS - CompetencePortal','HRIS - Learning Link']
-
-testArr = convert_text_to_index_array("ePurchase access")
-input = tokenizer.sequences_to_matrix([testArr], mode='binary')
-# predict which bucket your input belongs in
-pred = model.predict(input)
-# and print it for the humons
-print("%s sentiment; %f%% confidence" % (labels[np.argmax(pred)], pred[0][np.argmax(pred)] * 100))
+labels = ['HRIS - Learning Link','HRIS - CompetencePortal','HRIS - Access Management','HRIS - Legacy - AC Staff','HRIS - Reporting & Analytics','HRIS - Legacy - Absence-DB','HRIS - Master Data Management','HRIS - Legacy - NAV','HRIS - Legacy - Employee Request- / DQM-','HRIS - People Management','HRIS - Mobile App','HRIS - Time Off','HRIS - Knowledge Management','HRIS - Change Management','HRIS - Legacy - Recruitment-DB','HRIS - Legacy - IJM','HRIS - Integrations','HRIS - Travel & Expense','HRIS - Payroll','HRIS - Other']
 
 
-
-
-
+def testPrediction(text):
+    testArr = convert_text_to_index_array(text)
+    input = tokenizer.sequences_to_matrix([testArr], mode='binary')
+    # predict which bucket your input belongs in
+    pred = model.predict(input)
+    # and print it for the humons
+    print("%s ; %f%% confidence" % (labels[np.argmax(pred)], pred[0][np.argmax(pred)] * 100))
+    return pred
