@@ -4,6 +4,7 @@ Created on Mon Apr  2 20:32:59 2018
 
 @author: camedool
 
+url to download word2vec dictioany: https://docs.google.com/uc?export=download&id=0B7XkCwpI5KDYNlNUTTlSS21pQmM
 Example is taken from this source: https://vgpena.github.io/classifying-tweets-with-keras-and-tensorflow/
 loading the model - one-hot vector approach?
 """
