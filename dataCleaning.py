@@ -25,7 +25,7 @@ def replaceSignature(row):
     
     # pattern to high level cleaning
     patternBestRegards = 'Best regards.*'
-    patternKindRegards = 'Best regards.*'
+    patternKindRegards = 'Kind regards.*'
     patternDivider = '________________________________.*'
     patternCid = '\[cid.*\]'
     patternLotus = '\[Notes.*\]'
