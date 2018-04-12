@@ -12,7 +12,7 @@ from keras.preprocessing import sequence
 from sklearn.preprocessing import LabelEncoder
 
 # custom modules
-import loadingData
+import loadgData
 
 #=============
 #CONSTANTS
@@ -24,8 +24,8 @@ fileName = 'data.csv'
 #============
 
 # laoding cleaned data frame and assigning x and y vectors
-dataFrame = loadingData.loadCleanData()
-num_classes = len(dataFrame['category_id'].drop_duplicates())
+dataFrame = loadData.loadCleanData()
+num_classes = len(dataFrame['category'].drop_duplicates())
 
 X_raw = dataFrame['short_description'].values
 Y_raw = dataFrame['category'].values
